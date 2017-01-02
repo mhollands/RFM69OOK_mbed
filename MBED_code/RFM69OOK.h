@@ -65,7 +65,7 @@ class RFM69OOK
       _isRFM69HW = isRFM69HW;
     }
 
-    bool initialize();
+    bool initialize(SPI *_spi);
     uint32_t getFrequency();
     void setFrequency(uint32_t freqHz);
     void setFrequencyMHz(float f);

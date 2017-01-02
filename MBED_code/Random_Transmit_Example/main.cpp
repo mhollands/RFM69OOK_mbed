@@ -39,8 +39,9 @@ Serial pc(USBTX, USBRX); // define the USB serial port
 DigitalOut reset(p21); //define the Reset pin for the Radio
 
 int main() {
+    SPI spi(p11, p12, p13);
     resetModule();
-    radio.initialize();
+    radio.initialize(&spi);
     radio.setFrequencyMHz(433.9);
     radio.setPowerLevel(20);
     while(1) 

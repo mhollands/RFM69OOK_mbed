@@ -37,12 +37,13 @@
 volatile char RFM69OOK::_mode;  // current transceiver state
 volatile int RFM69OOK::RSSI;    // most accurate RSSI during reception (closest to the reception)
 RFM69OOK* RFM69OOK::selfPointer;
-SPI spi(p11, p12, p13); // define the SPI interface to the Radio (mosi, miso, sclk)
+SPI *spi; // define the SPI interface to the Radio (mosi, miso, sclk)
 DigitalOut cs(RF69OOK_SPI_CS);
 DigitalInOut irq(RF69OOK_IRQ_PIN);
 
-bool RFM69OOK::initialize()
+bool RFM69OOK::initialize(SPI *_spi)
 {
+  spi = _spi;
   const char CONFIG[][2] =
   {
     /* 0x01 */ { REG_OPMODE, RF_OPMODE_SEQUENCER_OFF | RF_OPMODE_LISTEN_OFF | RF_OPMODE_STANDBY },
@@ -57,8 +58,8 @@ bool RFM69OOK::initialize()
     {255, 0}
   };
   cs = DigitalOut(_slaveSelectPin, 1);
-  spi.format(8,0); //8 bits per transaction, mode 0 (polarity = 0, phase = 0)
-  spi.frequency(1000000); //1Mhz
+  spi->format(8,0); //8 bits per transaction, mode 0 (polarity = 0, phase = 0)
+  spi->frequency(1000000); //1Mhz
 
   for (char i = 0; CONFIG[i][0] != 255; i++)
     writeReg(CONFIG[i][0], CONFIG[i][1]);
@@ -239,8 +240,8 @@ int8_t RFM69OOK::readRSSI(bool forceTrigger) {
 char RFM69OOK::readReg(char addr)
 {
   select();
-  spi.write(addr & 0x7F);
-  char regval = spi.write(0x00);
+  spi->write(addr & 0x7F);
+  char regval = spi->write(0x00);
   unselect();
   return regval;
 }
@@ -248,8 +249,8 @@ char RFM69OOK::readReg(char addr)
 void RFM69OOK::writeReg(char addr, char value)
 {
   select();
-  spi.write(addr | 0x80);
-  spi.write(value);
+  spi->write(addr | 0x80);
+  spi->write(value);
   unselect();
 }
 
