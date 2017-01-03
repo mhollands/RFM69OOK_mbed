@@ -35,9 +35,7 @@
 #define RF69OOK_SPI_CS  p14 // set CS pin for Radio
 
 
-#define RF69OOK_IRQ_PIN          p22
-#define RF69OOK_IRQ_NUM          1
-
+#define RF69OOK_DATA_PIN          p22
 
 #define RF69OOK_MODE_SLEEP       0 // XTAL OFF
 #define RF69OOK_MODE_STANDBY     1 // XTAL ON
@@ -56,10 +54,9 @@ class RFM69OOK
     static volatile int RSSI; //most accurate RSSI during reception (closest to the reception)
     static volatile char _mode; //should be protected?
 
-    RFM69OOK(PinName slaveSelectPin=RF69OOK_SPI_CS, PinName interruptPin=RF69OOK_IRQ_PIN, bool isRFM69HW=false, char interruptNum=RF69OOK_IRQ_NUM) {
+    RFM69OOK(PinName slaveSelectPin=RF69OOK_SPI_CS, PinName dataPin=RF69OOK_DATA_PIN, bool isRFM69HW=false) {
       _slaveSelectPin = slaveSelectPin;
-      _interruptPin = interruptPin;
-      _interruptNum = interruptNum;
+      _dataPin = dataPin;
       _mode = RF69OOK_MODE_STANDBY;
       _powerLevel = 31;
       _isRFM69HW = isRFM69HW;
@@ -100,13 +97,9 @@ class RFM69OOK
     void unselect();
 
   protected:
-    static void isr0();
-    void virtual interruptHandler();
-
     static RFM69OOK* selfPointer;
     PinName _slaveSelectPin;
-    PinName _interruptPin;
-    char _interruptNum;
+    PinName _dataPin;
     char _powerLevel;
     bool _isRFM69HW;
     char _SPCR;
@@ -117,7 +110,6 @@ class RFM69OOK
 
     // functions related to OOK mode
     void (*userInterrupt)();
-    void ookInterruptHandler();
 };
 
 #endif

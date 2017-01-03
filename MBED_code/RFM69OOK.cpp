@@ -39,7 +39,8 @@ volatile int RFM69OOK::RSSI;    // most accurate RSSI during reception (closest 
 RFM69OOK* RFM69OOK::selfPointer;
 SPI *spi; // define the SPI interface to the Radio (mosi, miso, sclk)
 DigitalOut cs(RF69OOK_SPI_CS);
-DigitalInOut irq(RF69OOK_IRQ_PIN);
+DigitalInOut data(RF69OOK_DATA_PIN);
+InterruptIn irq(RF69OOK_DATA_PIN);
 
 bool RFM69OOK::initialize(SPI *_spi)
 {
@@ -67,7 +68,9 @@ bool RFM69OOK::initialize(SPI *_spi)
   setHighPower(_isRFM69HW); // called regardless if it's a RFM69W or RFM69HW
   setMode(RF69OOK_MODE_STANDBY);
     while ((readReg(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00); // Wait for ModeReady
-
+  irq.enable_irq();
+  irq.rise(userInterrupt);
+  irq.fall(userInterrupt);
   selfPointer = this;
   return true;
 }
@@ -75,56 +78,53 @@ bool RFM69OOK::initialize(SPI *_spi)
 // Poll for OOK signal
 bool RFM69OOK::poll()
 {
-  return irq;
+  return data;
 }
 
 // Send a 1 or 0 signal in OOK mode
 void RFM69OOK::send(bool signal)
 {
-  irq = signal;
+  data = signal;
 }
 
 // Turn the radio into transmission mode
 void RFM69OOK::transmitBegin()
 {
+  irq.rise(NULL); // not needed in TX mode
+  irq.fall(NULL); // not needed in TX mode
   setMode(RF69OOK_MODE_TX);
-  //detachInterrupt(_interruptNum); // not needed in TX mode (interrupts not yet supported)
-  irq.output(); //set interrupt pin as an output
+  data.output(); //set data pin as an output
 }
 
 // Turn the radio back to standby
 void RFM69OOK::transmitEnd()
 {
-  irq.input(); //set interrupt pin as an input
+  data.input(); //set data pin as an input
   setMode(RF69OOK_MODE_STANDBY);
 }
 
 // Turn the radio into OOK listening mode
 void RFM69OOK::receiveBegin()
 {
-  irq.input(); //set interrupt pin as an input
-  //attachInterrupt(_interruptNum, RFM69OOK::isr0, CHANGE); // generate interrupts in RX mode (interrupts not yet supported)
+  data.input(); //set data pin as an input
   setMode(RF69OOK_MODE_RX);
+  irq.rise(userInterrupt); // generate rising interrupts in RX mode
+  irq.fall(userInterrupt); // generate falling interrupts in RX mode
 }
 
 // Turn the radio back to standby
 void RFM69OOK::receiveEnd()
 {
+  irq.rise(NULL); // make sure there're no surprises
+  irq.fall(NULL); // make sure there're no surprises
   setMode(RF69OOK_MODE_STANDBY);
-  //detachInterrupt(_interruptNum); // make sure there're no surprises (interrupts not yet supported)
-}
-
-// Handle pin change interrupts in OOK mode (interrupts not yet supported)
-void RFM69OOK::interruptHandler()
-{
-  if (userInterrupt != NULL) (*userInterrupt)();
 }
 
 // Set a user interrupt for all transfer methods in receive mode
-// call with NULL to disable the user interrupt handler (interrupts not yet supported)
+// call with NULL to disable the user interrupt handler
 void RFM69OOK::attachUserInterrupt(void (*function)())
 {
-  userInterrupt = function;
+    userInterrupt = function;
 }
 
 // return the frequency (in Hz)
@@ -225,8 +225,6 @@ void RFM69OOK::setPowerLevel(char powerLevel)
   writeReg(REG_PALEVEL, (readReg(REG_PALEVEL) & 0xE0) | (_powerLevel > 31 ? 31 : _powerLevel));
 }
 
-void RFM69OOK::isr0() { selfPointer->interruptHandler(); }
-
 int8_t RFM69OOK::readRSSI(bool forceTrigger) {
   if (forceTrigger)
   {
@@ -256,14 +254,14 @@ void RFM69OOK::writeReg(char addr, char value)
 
 // Select the transceiver
 void RFM69OOK::select() {
-  //noInterrupts(); (interrupts not yet supported)
+  __disable_irq();
   cs = 0;
 }
 
 /// UNselect the transceiver chip
 void RFM69OOK::unselect() {
   cs = 1;
-  // interrupts(); (interrupts not yet supported)
+  __enable_irq();
 }
 
 void RFM69OOK::setHighPower(bool onOff) {

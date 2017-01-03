@@ -33,23 +33,25 @@
 #include <RFM69OOKregisters.h>
 
 void resetModule();
+void irq();
 DigitalOut myled(LED1);
 RFM69OOK radio; //define the RFM69 Radio
 Serial pc(USBTX, USBRX); // define the USB serial port
 DigitalOut reset(p21); //define the Reset pin for the Radio
 
 int main() {
-    SPI spi(p11, p12, p13);
-    resetModule();
-    radio.initialize(&spi);
+    SPI spi(p11, p12, p13); //initialse SPI port
+    resetModule(); //reset RFM69
+    radio.attachUserInterrupt(irq); //Set data pin interrupt function
+    radio.initialize(&spi); //initialise radio
     radio.setFrequencyMHz(433.9);
     radio.setPowerLevel(20);
-    while(1) 
+
+    while(1==1)
     {
-        radio.transmitBegin();
-        radio.setFrequencyMHz(433.9);
-        radio.setPowerLevel(20);
-        
+        myled = 1; //turn on LED
+        radio.transmitBegin(); //start a transmission 
+         
         radio.send(1);
         wait_us(300L);
         
@@ -69,12 +71,18 @@ int main() {
         wait_us(300L);
         
         radio.transmitEnd();
-        radio.receiveBegin();
-        myled = 1;
-        pc.putc(pc.getc());
-        myled = 0;
-        radio.receiveEnd();
+        
+        radio.receiveBegin(); //being receiving
+        pc.putc(pc.getc()); //wait for serial character
+        radio.receiveEnd(); //end receiving
     }
+    
+}
+
+void irq()
+{
+    //when interrupt is thrown (ie RFM data pin changes and in receive mode), turn off LED
+    myled = 0;   
 }
 
 void resetModule()
